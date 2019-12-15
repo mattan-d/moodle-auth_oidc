@@ -26,14 +26,16 @@ namespace auth_oidc\loginflow;
 /**
  * Login flow for the oauth2 authorization code grant.
  */
-class authcode extends \auth_oidc\loginflow\base {
+class authcode extends \auth_oidc\loginflow\base
+{
     /**
      * Returns a list of potential IdPs that this authentication plugin supports. Used to provide links on the login page.
      *
      * @param string $wantsurl The relative url fragment the user wants to get to.
      * @return array Array of idps.
      */
-    public function loginpage_idp_list($wantsurl) {
+    public function loginpage_idp_list($wantsurl)
+    {
         if (empty($this->config->clientid) || empty($this->config->clientsecret)) {
             return [];
         }
@@ -73,7 +75,8 @@ class authcode extends \auth_oidc\loginflow\base {
      * @param string $fallback The fallback value.
      * @return string The parameter value, or fallback.
      */
-    protected function getoidcparam($name, $fallback = '') {
+    protected function getoidcparam($name, $fallback = '')
+    {
         $val = optional_param($name, $fallback, PARAM_RAW);
         $val = trim($val);
         $valclean = preg_replace('/[^A-Za-z0-9\_\-\.\+\/\=]/i', '', $val);
@@ -89,7 +92,8 @@ class authcode extends \auth_oidc\loginflow\base {
      *
      * @return mixed Determined by loginflow.
      */
-    public function handleredirect() {
+    public function handleredirect()
+    {
         global $CFG, $SESSION;
 
         $state = $this->getoidcparam('state');
@@ -136,7 +140,8 @@ class authcode extends \auth_oidc\loginflow\base {
      * @param string $password The password (with system magic quotes)
      * @return bool Authentication success or failure.
      */
-    public function user_login($username, $password = null) {
+    public function user_login($username, $password = null)
+    {
         global $CFG, $DB;
 
         // Check user exists.
@@ -157,7 +162,8 @@ class authcode extends \auth_oidc\loginflow\base {
      * @param array $stateparams Parameters to store as state.
      * @param array $extraparams Additional parameters to send with the OIDC request.
      */
-    public function initiateauthrequest($promptlogin = false, array $stateparams = array(), array $extraparams = array()) {
+    public function initiateauthrequest($promptlogin = false, array $stateparams = array(), array $extraparams = array())
+    {
         $client = $this->get_oidcclient();
         $client->authrequest($promptlogin, $stateparams, $extraparams);
     }
@@ -167,7 +173,8 @@ class authcode extends \auth_oidc\loginflow\base {
      *
      * @param array $authparams Received parameters.
      */
-    protected function handleauthresponse(array $authparams) {
+    protected function handleauthresponse(array $authparams)
+    {
         global $DB, $CFG, $STATEADDITIONALDATA, $USER;
 
         if (!empty($authparams['error_description'])) {
@@ -243,13 +250,13 @@ class authcode extends \auth_oidc\loginflow\base {
                                                  FROM {user}
                                                 WHERE username = ?
                                                       AND id != ?',
-                    [$idtoken->claim('upn'), $USER->id]);
+                [$idtoken->claim('upn'), $USER->id]);
 
             if (!empty($userrec)) {
                 if (empty($additionaldata['redirect'])) {
                     $redirect = '/auth/oidc/ucp.php?o365accountconnected=true';
                 } else if ($additionaldata['redirect'] == '/local/o365/ucp.php') {
-                    $redirect = $additionaldata['redirect'].'?action=connection&o365accountconnected=true';
+                    $redirect = $additionaldata['redirect'] . '?action=connection&o365accountconnected=true';
                 } else {
                     throw new \moodle_exception('errorinvalidredirect_message', 'auth_oidc');
                 }
@@ -280,7 +287,8 @@ class authcode extends \auth_oidc\loginflow\base {
      * @param \auth_oidc\jwt $idtoken A JWT object representing the received id_token.
      * @param bool $connectiononly Whether to just connect the user (true), or to connect and change login method (false).
      */
-    protected function handlemigration($oidcuniqid, $authparams, $tokenparams, $idtoken, $connectiononly = false) {
+    protected function handlemigration($oidcuniqid, $authparams, $tokenparams, $idtoken, $connectiononly = false)
+    {
         global $USER, $DB, $CFG;
 
         // Check if OIDC user is already connected to a Moodle user.
@@ -368,7 +376,8 @@ class authcode extends \auth_oidc\loginflow\base {
      *
      * @return false|stdClass Either the matched Moodle user record, or false if not matched.
      */
-    protected function check_for_matched($aadupn) {
+    protected function check_for_matched($aadupn)
+    {
         global $DB;
         $dbman = $DB->get_manager();
         if ($dbman->table_exists('local_o365_connections')) {
@@ -387,7 +396,8 @@ class authcode extends \auth_oidc\loginflow\base {
      * @return string If there is an existing user object, return the username associated with it.
      *                If there is no existing user object, return the original username.
      */
-    protected function check_objects($oidcuniqid, $username) {
+    protected function check_objects($oidcuniqid, $username)
+    {
         global $DB;
         $user = null;
         $o365installed = $DB->get_record('config_plugins', ['plugin' => 'local_o365', 'name' => 'version']);
@@ -410,7 +420,8 @@ class authcode extends \auth_oidc\loginflow\base {
      * @param array $tokenparams Parameters received from the token request.
      * @param \auth_oidc\jwt $idtoken A JWT object representing the received id_token.
      */
-    protected function handlelogin($oidcuniqid, $authparams, $tokenparams, $idtoken) {
+    protected function handlelogin($oidcuniqid, $authparams, $tokenparams, $idtoken)
+    {
         global $DB, $CFG;
 
         $tokenrec = $DB->get_record('auth_oidc_token', ['oidcuniqid' => $oidcuniqid]);
@@ -444,36 +455,19 @@ class authcode extends \auth_oidc\loginflow\base {
             // Generate a Moodle username.
             // Use 'upn' if available for username (Azure-specific), or fall back to lower-case oidcuniqid.
             $username = $idtoken->claim('upn');
+
             if (empty($username)) {
                 $username = $oidcuniqid;
             }
 
-            // See if we have an object listing.
-            $username = $this->check_objects($oidcuniqid, $username);
-            $matchedwith = $this->check_for_matched($username);
-            if (!empty($matchedwith)) {
-                $matchedwith->aadupn = $username;
-                throw new \moodle_exception('errorusermatched', 'local_o365', null, $matchedwith);
-            }
             $username = trim(\core_text::strtolower($username));
             $tokenrec = $this->createtoken($oidcuniqid, $username, $authparams, $tokenparams, $idtoken);
 
-            $existinguserparams = ['username' => $username, 'mnethostid' => $CFG->mnet_localhost_id];
-            if ($DB->record_exists('user', $existinguserparams) !== true) {
-                // User does not exist. Create user if site allows, otherwise fail.
-                if (empty($CFG->authpreventaccountcreation)) {
-                    $user = create_user_record($username, null, 'oidc');
-                } else {
-                    // Trigger login failed event.
-                    $failurereason = AUTH_LOGIN_NOUSER;
-                    $eventdata = ['other' => ['username' => $username, 'reason' => $failurereason]];
-                    $event = \core\event\user_login_failed::create($eventdata);
-                    $event->trigger();
-                    throw new \moodle_exception('errorauthloginfailednouser', 'auth_oidc', null, null, '1');
-                }
+            $existinguserparams = ['email' => $username, 'mnethostid' => $CFG->mnet_localhost_id];
+            $user = $DB->get_record('user', $existinguserparams);
+            if (!$user) {
+                throw new \moodle_exception('user not found!');
             }
-
-            $user = authenticate_user_login($username, null, true);
 
             if (!empty($user)) {
                 $tokenrec = $DB->get_record('auth_oidc_token', ['id' => $tokenrec->id]);
