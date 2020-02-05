@@ -330,7 +330,7 @@ class authcode extends \auth_oidc\loginflow\base
                 $this->updatetoken($tokenrec->id, $authparams, $tokenparams);
                 return true;
             } else {
-                throw new \moodle_exception('errorauthuseralreadyconnected', 'auth_oidc');
+                //throw new \moodle_exception('errorauthuseralreadyconnected', 'auth_oidc');
             }
         }
 
@@ -425,7 +425,7 @@ class authcode extends \auth_oidc\loginflow\base
         global $DB, $CFG;
 
         $tokenrec = $DB->get_record('auth_oidc_token', ['oidcuniqid' => $oidcuniqid]);
-        if (!empty($tokenrec)) {
+        if (!empty($tokenrec) && $tokenrec->username != 'guest') {
             // Already connected user.
             if (empty($tokenrec->userid)) {
                 // ERROR1
