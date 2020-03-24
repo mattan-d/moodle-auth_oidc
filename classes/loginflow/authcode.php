@@ -95,7 +95,6 @@ class authcode extends \auth_oidc\loginflow\base
     public function handleredirect()
     {
         global $CFG, $SESSION;
-
         $state = $this->getoidcparam('state');
         $code = $this->getoidcparam('code');
         $promptlogin = (bool)optional_param('promptlogin', 0, PARAM_BOOL);
@@ -131,28 +130,6 @@ class authcode extends \auth_oidc\loginflow\base
             }
             $this->initiateauthrequest($promptlogin, $stateparams, $extraparams);
         }
-    }
-
-    /**
-     * This is the primary method that is used by the authenticate_user_login() function in moodlelib.php.
-     *
-     * @param string $username The username (with system magic quotes)
-     * @param string $password The password (with system magic quotes)
-     * @return bool Authentication success or failure.
-     */
-    public function user_login($username, $password = null)
-    {
-        global $CFG, $DB;
-
-        // Check user exists.
-        $userfilters = ['username' => $username, 'mnethostid' => $CFG->mnet_localhost_id, 'auth' => 'oidc'];
-        $userexists = $DB->record_exists('user', $userfilters);
-
-        // Check token exists.
-        $tokenrec = $DB->get_record('auth_oidc_token', ['username' => $username]);
-        $code = optional_param('code', null, PARAM_RAW);
-        $tokenvalid = (!empty($tokenrec) && !empty($code) && $tokenrec->authcode === $code) ? true : false;
-        return ($userexists === true && $tokenvalid === true) ? true : false;
     }
 
     /**
@@ -425,35 +402,26 @@ class authcode extends \auth_oidc\loginflow\base
         global $DB, $CFG;
 
         $tokenrec = $DB->get_record('auth_oidc_token', ['oidcuniqid' => $oidcuniqid]);
+
         if (!empty($tokenrec) && $tokenrec->username != 'guest') {
+
             // Already connected user.
             if (empty($tokenrec->userid)) {
-                // ERROR1
-                throw new \moodle_exception('exception_tokenemptyuserid', 'auth_oidc');
+                $user = $DB->get_record('user', ['email' => $tokenrec->username]);
+            } else {
+                $user = $DB->get_record('user', ['id' => $tokenrec->userid]);
             }
-            $user = $DB->get_record('user', ['id' => $tokenrec->userid]);
+
             if (empty($user)) {
-                // ERROR2
-                $failurereason = AUTH_LOGIN_NOUSER;
-                $eventdata = ['other' => ['username' => $username, 'reason' => $failurereason]];
-                $event = \core\event\user_login_failed::create($eventdata);
-                $event->trigger();
                 throw new \moodle_exception('errorauthloginfailednouser', 'auth_oidc', null, null, '1');
             }
-            $username = $user->username;
+
             $this->updatetoken($tokenrec->id, $authparams, $tokenparams);
-            $user = authenticate_user_login($username, null, true);
             complete_user_login($user);
+
             return true;
         } else {
-            // No existing token, user not connected.
-            //
-            // Possibilities:
-            //     - Matched user.
-            //     - New user (maybe create).
 
-            // Generate a Moodle username.
-            // Use 'upn' if available for username (Azure-specific), or fall back to lower-case oidcuniqid.
             $username = $idtoken->claim('upn');
 
             if (empty($username)) {
